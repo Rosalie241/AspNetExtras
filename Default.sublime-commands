@@ -1,0 +1,22 @@
+[
+	{
+		"caption": "ASP.NET: Add database migration",
+		"command": "aspnet_add_database_migration"
+	},
+		{
+		"caption": "ASP.NET: Remove database migration",
+		"command": "aspnet_remove_database_migration"
+	},
+	{
+		"caption": "ASP.NET: Update Database",
+		"command": "aspnet_update_database"
+	},
+	{
+		"caption": "ASP.NET: Drop Database",
+		"command": "aspnet_drop_database"
+	},
+	{
+		"caption": "ASP.NET: Add Razor Page",
+		"command": "aspnet_add_razor_page"
+	}
+]
