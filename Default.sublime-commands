@@ -12,6 +12,10 @@
 		"command": "aspnet_update_database"
 	},
 	{
+		"caption": "ASP.NET: Update Database To Migration",
+		"command": "aspnet_update_database_migration"
+	},
+	{
 		"caption": "ASP.NET: Drop Database",
 		"command": "aspnet_drop_database"
 	},

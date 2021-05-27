@@ -3,6 +3,7 @@ import sublime_plugin
 import os
 import subprocess
 import threading
+import glob
 
 # simple helper function
 # to launch process in a different thread
@@ -76,6 +77,11 @@ def GetAspnetProjectDir(window, settings):
 
 	return os.path.join(project_path, aspnet_project_dir)
 
+def ProcessCallback(command, returncode):
+	command_str = " ".join(command)
+	if returncode != 0:
+		sublime.error_message("\'" + command_str + "\'' Failed!\nView the console for more details")
+
 class MigrationNameInputHandler(sublime_plugin.TextInputHandler):
 	def description(self, text):
 		return "Migration Name"
@@ -104,12 +110,16 @@ class RazorpageNamespaceInputHandler(sublime_plugin.TextInputHandler):
 	def placeholder(self):
 		return self.description("")
 
-class AspnetAddDatabaseMigrationCommand(sublime_plugin.TextCommand):
-	def process_callback(self, command, returncode):
-		command_str = " ".join(command)
-		if returncode != 0:
-			sublime.error_message("\'" + command_str + "\'' Failed!\nView the console for more details")
+class ListItemsInputHandler(sublime_plugin.ListInputHandler):
+	items = [ ]
 
+	def set_items(self, items_list):
+		self.items = items_list
+
+	def list_items(self):
+		return self.items;
+
+class AspnetAddDatabaseMigrationCommand(sublime_plugin.TextCommand):
 	def run(self, edit, migration_name):
 		project_path = GetAspnetProjectDir(self.view.window(), self.view.settings())
 		if project_path == None:
@@ -119,7 +129,7 @@ class AspnetAddDatabaseMigrationCommand(sublime_plugin.TextCommand):
 			sublime.error_message("name cannot be empty")
 			return
 
-		LaunchProcess(self.process_callback,
+		LaunchProcess(ProcessCallback,
 			["dotnet", "ef", "migrations", "add", migration_name],
 			project_path)
 
@@ -133,17 +143,12 @@ class AspnetAddDatabaseMigrationCommand(sublime_plugin.TextCommand):
 		return "Adds a database migration"
 
 class AspnetRemoveDatabaseMigrationCommand(sublime_plugin.TextCommand):
-	def process_callback(self, command, returncode):
-		command_str = " ".join(command)
-		if returncode != 0:
-			sublime.error_message("\'" + command_str + "\'' Failed!\nView the console for more details")
-
 	def run(self, edit):
 		project_path = GetAspnetProjectDir(self.view.window(), self.view.settings())
 		if project_path == None:
 			return
 
-		LaunchProcess(self.process_callback,
+		LaunchProcess(ProcessCallback,
 			["dotnet", "ef", "migrations", "remove"],
 			project_path)
 
@@ -152,19 +157,13 @@ class AspnetRemoveDatabaseMigrationCommand(sublime_plugin.TextCommand):
 	def description(self):
 		return "Removes a database migration"
 
-
 class AspnetUpdateDatabaseCommand(sublime_plugin.TextCommand):
-	def process_callback(self, command, returncode):
-		command_str = " ".join(command)
-		if returncode != 0:
-			sublime.error_message("\'" + command_str + "\'' Failed!\nView the console for more details")
-
 	def run(self, edit):
 		project_path = GetAspnetProjectDir(self.view.window(), self.view.settings())
 		if project_path == None:
 			return
 
-		LaunchProcess(self.process_callback,
+		LaunchProcess(ProcessCallback,
 			["dotnet", "ef", "database", "update"],
 			project_path)
 
@@ -173,19 +172,53 @@ class AspnetUpdateDatabaseCommand(sublime_plugin.TextCommand):
 	def description(self):
 		return "Updates the database"
 
+class AspnetUpdateDatabaseMigrationCommand(sublime_plugin.TextCommand):
+	def get_migrations(self):
+		project_path = GetAspnetProjectDir(self.view.window(), self.view.settings())
+		if project_path == None:
+			return None
+
+		migrations = [ ]
+		for f in glob.glob(os.path.join(project_path, "Migrations", "*.cs")):
+			file_name = os.path.basename(f)
+			if '_' in file_name and 'Designer' not in file_name:
+				file_name = os.path.splitext(file_name)[0]
+				migrations.append(file_name)
+
+		return migrations
+
+	def run(self, edit, list_items):
+		project_path = GetAspnetProjectDir(self.view.window(), self.view.settings())
+		if project_path == None:
+			return
+
+		LaunchProcess(ProcessCallback,
+			["dotnet", "ef", "database", "update", list_items],
+			project_path)
+
+		return
+
+	def input(self, args):
+		if 'list_items' not in args:
+			migrations = self.get_migrations()
+			if migrations == None:
+				sublime.error_message("No migrations found!");
+				return;
+
+			input_handler = ListItemsInputHandler()
+			input_handler.set_items(migrations)
+			return input_handler
+
+	def description(self):
+		return "Updates the database to a migration"
 
 class AspnetDropDatabaseCommand(sublime_plugin.TextCommand):
-	def process_callback(self, command, returncode):
-		command_str = " ".join(command)
-		if returncode != 0:
-			sublime.error_message("\'" + command_str + "\'' Failed!\nView the console for more details")
-
 	def run(self, edit):
 		project_path = GetAspnetProjectDir(self.view.window(), self.view.settings())
 		if project_path == None:
 			return
 
-		LaunchProcess(self.process_callback,
+		LaunchProcess(ProcessCallback,
 			["dotnet", "ef", "database", "drop"],
 			project_path)
 
@@ -196,11 +229,6 @@ class AspnetDropDatabaseCommand(sublime_plugin.TextCommand):
 
 
 class AspnetAddRazorPageCommand(sublime_plugin.TextCommand):
-	def process_callback(self, command, returncode):
-		command_str = " ".join(command)
-		if returncode != 0:
-			sublime.error_message("\'" + command_str + "\'' Failed!\nView the console for more details")
-
 	def run(self, edit, razorpage_name, razorpage_dir, razorpage_namespace):
 		project_path = GetAspnetProjectDir(self.view.window(), self.view.settings())
 		if project_path == None:
@@ -218,7 +246,7 @@ class AspnetAddRazorPageCommand(sublime_plugin.TextCommand):
 			sublime.error_message("namespace cannot be empty")
 			return
 
-		LaunchProcess(self.process_callback,
+		LaunchProcess(ProcessCallback,
 			["dotnet", "new", "page", 
 				"--name", razorpage_name,
 				"-o", razorpage_dir,
